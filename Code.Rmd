@@ -1,0 +1,164 @@
+---
+title: "NY Housing Pricing Project"
+author: 'Ishaan SIngh, '
+date: "30/10/2020"
+output: pdf_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r, echo = FALSE,include = FALSE}
+
+# Importing the relevant libraries
+
+library(tidyverse)
+library(corrplot)
+library(qtlcharts)
+
+```
+
+
+
+```{r data import, include = FALSE}
+
+# Importing the data and performing data munging
+
+data = read.delim("Housing Prices NY.txt")
+
+glimpse(data) 
+
+colSums(is.na(data)) # checking for NA values in the data
+
+# Converting categorical attributes into the factor type
+
+data$Fuel.Type = as.factor(data$Fuel.Type)
+data$Heat.Type = as.factor(data$Heat.Type)
+data$Sewer.Type = as.factor(data$Sewer.Type)
+
+
+# Creating the test-train split
+train.data = data %>%
+    filter(data$Test == 0)
+test.data = data %>%
+    filter(data$Test == 1)
+
+nrow(train.data)/(nrow(train.data) + nrow(test.data)) # 75% of the data is used for training
+
+```
+
+
+
+
+```{r model select}
+
+# MODEL SELECTION
+
+model = lm(Price ~ . , data = train.data)
+model = update(model, .~. - Test)
+
+new_model = update(model, .~. - Sewer.Type - Fireplaces - Fuel.Type - Pct.College - Age)
+# drop1(new_model, test = "F")
+
+summary(model)$r.squared
+summary(new_model)$r.squared
+
+summary(new_model)
+
+
+```
+
+
+
+```{r assumption testing}
+
+# NORMALITY OF ERROR TERMS
+
+residuals  = resid(new_model)
+
+qqnorm(residuals)
+qqline(residuals)
+
+hist(residuals, main = "Distribution of Residuals", xlab = "Residuals", freq = TRUE)
+
+
+# LINEARITY AND CONDITIONAL MEAN INDEPENDENCE ASSUMPTIONS TESTING
+
+plot(new_model, 1)
+
+
+# MULTICOLLINEARITY ASSUMPTION TESTING
+
+numeric.data = train.data[c("Lot.Size", "Land.Value", "Bedrooms", "Rooms", "Bathrooms", "Living.Area")]
+
+iplotCorr(numeric.data)
+
+
+# HOMOSKEDASTICITY ASSUMPTION TESTING
+
+par(mfrow = c(3,2))
+
+# Bedrooms
+Bedrooms = train.data$Bedrooms
+
+plot(residuals ~ Bedrooms, main = "Bedrooms") # the same must be done for other regressors
+abline(lm(residuals ~ Bedrooms), col="red")
+
+# Land Value
+Land_Value = train.data$Land.Value
+
+plot(residuals ~ Land_Value, main = "Land Value")
+abline(lm(residuals ~ Land_Value), col="red")
+
+# Living Area
+Living_Area = train.data$Living.Area
+
+plot(residuals ~ Living_Area, main = "Living Area")
+abline(lm(residuals ~ Living_Area), col="red")
+
+# Bathrooms
+Bathrooms = train.data$Bathrooms
+
+plot(residuals ~ Bathrooms, main = "Bathrooms")
+abline(lm(residuals ~ Bathrooms), col="red")
+
+# Lot Size
+Lot_Size = train.data$Lot.Size
+
+plot(residuals ~ Lot_Size, main = "Lot Size")
+abline(lm(residuals ~ Lot_Size), col="red")
+
+# Age
+Age = train.data$Age
+
+plot(residuals ~ Age, main = "Age")
+abline(lm(residuals ~ Age), col="red")
+
+
+```
+
+
+
+```{r performance}
+
+predicted = predict(new_model, newdata = test.data)
+
+rmse = sqrt(mean((test.data$Price - predicted)^2))
+rmse
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
